@@ -320,9 +320,11 @@ func (d *Driver) Create() error {
 
 	d.setMachineNameIfNotSet()
 
-	b2dutils := mcnutils.NewB2dUtils(d.StorePath)
-	if err := b2dutils.CopyIsoToMachineDir(d.Boot2DockerURL, d.MachineName); err != nil {
-		return err
+	if d.osTemplateLabelName == "Other install media" {
+		b2dutils := mcnutils.NewB2dUtils(d.StorePath)
+		if err := b2dutils.CopyIsoToMachineDir(d.Boot2DockerURL, d.MachineName); err != nil {
+			return err
+		}
 	}
 
 	log.Infof("Logging into XenServer %s...", d.Server)
