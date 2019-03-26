@@ -305,13 +305,14 @@ func (d *Driver) GetState() (state.State, error) {
 }
 
 func (d *Driver) PreCreateCheck() error {
-	// Downloading boot2docker to cache should be done here to make sure
-	// that a download failure will not leave a machine half created.
-	b2dutils := mcnutils.NewB2dUtils(d.StorePath)
-	if err := b2dutils.UpdateISOCache(d.Boot2DockerURL); err != nil {
-		return err
+	if d.osTemplateLabelName == "Other install media" {
+		// Downloading boot2docker to cache should be done here to make sure
+		// that a download failure will not leave a machine half created.
+		b2dutils := mcnutils.NewB2dUtils(d.StorePath)
+		if err := b2dutils.UpdateISOCache(d.Boot2DockerURL); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
