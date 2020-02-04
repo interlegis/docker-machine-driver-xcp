@@ -1,4 +1,6 @@
-package xenserver
+//This file was modified from the original work, https://github.com/xenserver/docker-machine-driver-xenserver
+
+package xcp
 
 import (
 	"archive/tar"
@@ -23,16 +25,15 @@ import (
 	"github.com/docker/machine/libmachine/ssh"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/nilshell/xmlrpc"
-	"golang.org/x/net/context"
-
 	xsclient "github.com/xenserver/go-xenserver-client"
+	"golang.org/x/net/context"
 )
 
 const (
-	isoFilename         = "boot2docker.iso"
-	tarFilename         = "boot2docker.tar"
-	B2D_USER            = "docker"
-	B2D_PASS            = "tcuser"
+	isoFilename = "boot2docker.iso"
+	tarFilename = "boot2docker.tar"
+	B2D_USER    = "docker"
+	B2D_PASS    = "tcuser"
 )
 
 type Driver struct {
@@ -65,88 +66,87 @@ type Driver struct {
 func (d *Driver) GetCreateFlags() []mcnflag.Flag {
 	return []mcnflag.Flag{
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_SERVER",
-			Name:   "xenserver-server",
-			Usage:  "XenServer server hostname/IP for docker VM",
+			EnvVar: "XCP_SERVER",
+			Name:   "xcp-server",
+			Usage:  "XCP server hostname/IP for docker VM",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_USERNAME",
-			Name:   "xenserver-username",
-			Usage:  "XenServer username",
+			EnvVar: "XCP_USERNAME",
+			Name:   "xcp-username",
+			Usage:  "XCP username",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_PASSWORD",
-			Name:   "xenserver-password",
-			Usage:  "XenServer password",
+			EnvVar: "XCP_PASSWORD",
+			Name:   "xcp-password",
+			Usage:  "XCP password",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_BOOT2DOCKER_URL",
-			Name:   "xenserver-boot2docker-url",
-			Usage:  "XenServer URL for boot2docker image",
+			EnvVar: "XCP_BOOT2DOCKER_URL",
+			Name:   "xcp-boot2docker-url",
+			Usage:  "XCP URL for boot2docker image",
 		},
 		mcnflag.IntFlag{
-			EnvVar: "XENSERVER_VCPU_COUNT",
-			Name:   "xenserver-vcpu-count",
-			Usage:  "XenServer vCPU number for docker VM",
+			EnvVar: "XCP_VCPU_COUNT",
+			Name:   "xcp-vcpu-count",
+			Usage:  "XCP vCPU number for docker VM",
 			Value:  1,
 		},
 		mcnflag.IntFlag{
-			EnvVar: "XENSERVER_MEMORY_SIZE",
-			Name:   "xenserver-memory-size",
-			Usage:  "XenServer size of memory for docker VM (in MB)",
+			EnvVar: "XCP_MEMORY_SIZE",
+			Name:   "xcp-memory-size",
+			Usage:  "XCP size of memory for docker VM (in MB)",
 			Value:  1024,
 		},
 		mcnflag.IntFlag{
-			EnvVar: "XENSERVER_DISK_SIZE",
-			Name:   "xenserver-disk-size",
-			Usage:  "XenServer size of disk for docker VM (in MB)",
+			EnvVar: "XCP_DISK_SIZE",
+			Name:   "xcp-disk-size",
+			Usage:  "XCP size of disk for docker VM (in MB)",
 			Value:  5120,
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_SR_LABEL",
-			Name:   "xenserver-sr-label",
-			Usage:  "XenServer SR label where the docker VM will be attached",
+			EnvVar: "XCP_SR_LABEL",
+			Name:   "xcp-sr-label",
+			Usage:  "XCP SR label where the docker VM will be attached",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_NETWORK_LABEL",
-			Name:   "xenserver-network-label",
-			Usage:  "XenServer network label where the docker VM will be attached",
+			EnvVar: "XCP_NETWORK_LABEL",
+			Name:   "xcp-network-label",
+			Usage:  "XCP network label where the docker VM will be attached",
 		},
 		mcnflag.StringFlag{
-			EnvVar: "XENSERVER_HOST_LABEL",
-			Name:   "xenserver-host-label",
-			Usage:  "XenServer host label where the docker VM will be run",
+			EnvVar: "XCP_HOST_LABEL",
+			Name:   "xcp-host-label",
+			Usage:  "XCP host label where the docker VM will be run",
 		},
 		mcnflag.IntFlag{
-			EnvVar: "XENSERVER_UPLOAD_TIMEOUT",
-			Name:   "xenserver-upload-timeout",
-			Usage:  "XenServer upload VDI timeout(seconds)",
+			EnvVar: "XCP_UPLOAD_TIMEOUT",
+			Name:   "xcp-upload-timeout",
+			Usage:  "XCP upload VDI timeout(seconds)",
 			Value:  5 * 60,
 		},
 		mcnflag.IntFlag{
-			EnvVar: "XENSERVER_WAIT_TIMEOUT",
-			Name:   "xenserver-wait-timeout",
-			Usage:  "XenServer wait VM start timeout(seconds)",
+			EnvVar: "XCP_WAIT_TIMEOUT",
+			Name:   "xcp-wait-timeout",
+			Usage:  "XCP wait VM start timeout(seconds)",
 			Value:  30 * 60,
 		},
-                mcnflag.StringFlag{
-                        EnvVar: "XENSERVER_OS_TEMPLATE",
-                        Name:   "xenserver-os-template",
-                        Usage:  "XenServer OS Template Label Name",
+		mcnflag.StringFlag{
+			EnvVar: "XCP_OS_TEMPLATE",
+			Name:   "xcp-os-template",
+			Usage:  "XCP OS Template Label Name",
 			Value:  "Other install media",
-                },
-                mcnflag.StringFlag{
-                        EnvVar: "XENSERVER_OS_USERNAME",
-                        Name:   "xenserver-os-username",
-                        Usage:  "XenServer Username used to SSH into guest OS",
-                        Value:  B2D_USER,
-                },
-                mcnflag.BoolFlag{
-                        EnvVar: "XENSERVER_COREOS_CONFIGDRIVE",
-                        Name:   "xenserver-coreos-configdrive",
-                        Usage:  "XenServer Enable CoreOS specific ConfigDrive (requires xscontainer supplemental pack)",
-                },
-
+		},
+		mcnflag.StringFlag{
+			EnvVar: "XCP_OS_USERNAME",
+			Name:   "xcp-os-username",
+			Usage:  "XCP Username used to SSH into guest OS",
+			Value:  B2D_USER,
+		},
+		mcnflag.BoolFlag{
+			EnvVar: "XCP_COREOS_CONFIGDRIVE",
+			Name:   "xcp-coreos-configdrive",
+			Usage:  "XCP Enable CoreOS specific ConfigDrive (requires xscontainer supplemental pack)",
+		},
 	}
 }
 
@@ -179,31 +179,31 @@ func (d *Driver) GetSSHUsername() string {
 }
 
 func (d *Driver) DriverName() string {
-	return "xenserver"
+	return "xcp"
 }
 
 func (d *Driver) SetConfigFromFlags(flags drivers.DriverOptions) error {
-	d.SSHUser = flags.String("xenserver-os-username")
+	d.SSHUser = flags.String("xcp-os-username")
 	d.SSHPort = 22
-	d.Server = flags.String("xenserver-server")
-	d.Username = flags.String("xenserver-username")
-	d.Password = flags.String("xenserver-password")
-	d.Boot2DockerURL = flags.String("xenserver-boot2docker-url")
-	d.CPU = uint(flags.Int("xenserver-vcpu-count"))
-	d.Memory = uint(flags.Int("xenserver-memory-size"))
-	d.DiskSize = uint(flags.Int("xenserver-disk-size"))
-	d.SR = flags.String("xenserver-sr-label")
-	d.Network = flags.String("xenserver-network-label")
-	d.Host = flags.String("xenserver-host-label")
-	d.UploadTimeout = uint(flags.Int("xenserver-upload-timeout"))
-	d.WaitTimeout = uint(flags.Int("xenserver-wait-timeout"))
+	d.Server = flags.String("xcp-server")
+	d.Username = flags.String("xcp-username")
+	d.Password = flags.String("xcp-password")
+	d.Boot2DockerURL = flags.String("xcp-boot2docker-url")
+	d.CPU = uint(flags.Int("xcp-vcpu-count"))
+	d.Memory = uint(flags.Int("xcp-memory-size"))
+	d.DiskSize = uint(flags.Int("xcp-disk-size"))
+	d.SR = flags.String("xcp-sr-label")
+	d.Network = flags.String("xcp-network-label")
+	d.Host = flags.String("xcp-host-label")
+	d.UploadTimeout = uint(flags.Int("xcp-upload-timeout"))
+	d.WaitTimeout = uint(flags.Int("xcp-wait-timeout"))
 	d.SwarmMaster = flags.Bool("swarm-master")
 	d.SwarmHost = flags.String("swarm-host")
 	d.SwarmDiscovery = flags.String("swarm-discovery")
 	d.ISO = d.ResolveStorePath(isoFilename)
 	d.TAR = d.ResolveStorePath(tarFilename)
-	d.osTemplateLabelName = flags.String("xenserver-os-template")
-	d.CoreosConfigDrive = flags.Bool("xenserver-coreos-configdrive")
+	d.osTemplateLabelName = flags.String("xcp-os-template")
+	d.CoreosConfigDrive = flags.Bool("xcp-coreos-configdrive")
 
 	return nil
 }
@@ -343,24 +343,24 @@ func (d *Driver) Create() error {
 
 	// Only upload ISO image if using Other install media, otherwise use existing VM template
 	var sr *xsclient.SR
-	var isoVdiUuid,diskVdiUuid string
+	var isoVdiUuid, diskVdiUuid string
 
-        // Get the SR
-        if d.SR == "" {
+	// Get the SR
+	if d.SR == "" {
 		sr, err = c.GetDefaultSR()
 		if sr.Ref == "OpaqueRef:NULL" {
 			err := errors.New("No default SR found. Please configure a " +
-                                        "default or specify the SR explicitly using " +
-                                        "--xenserver-sr-label.")
+				"default or specify the SR explicitly using " +
+				"--xcp-sr-label.")
 			log.Errorf("%v", err)
-                        return err
-                }
-        } else {
+			return err
+		}
+	} else {
 		sr, err = c.GetUniqueSRByNameLabel(d.SR)
-        }
-        if err != nil {
+	}
+	if err != nil {
 		return err
-        }
+	}
 
 	if d.osTemplateLabelName == "Other install media" {
 
@@ -514,30 +514,30 @@ func (d *Driver) Create() error {
 			return err
 		}
 	} else {
-                pubKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
-                if err != nil {
-                        return err
-                }
+		pubKey, err := ioutil.ReadFile(d.publicSSHKeyPath())
+		if err != nil {
+			return err
+		}
 		vmUuid, err := vm.GetUuid()
-                if err != nil {
-                        return err
-                }
-		srUuid,err := sr.GetUuid()
-                if err != nil {
-                        return err
-                }
+		if err != nil {
+			return err
+		}
+		srUuid, err := sr.GetUuid()
+		if err != nil {
+			return err
+		}
 
-                if d.CoreosConfigDrive {
-                        err := d.createCoreOSConfigDrive(pubKey, vmUuid, srUuid)
-                        if err != nil {
-                                return err
-                        }
-                } else {
-                        log.Infof("Creating Config Drive...")
-                        isoVdiUuid, err := d.createGenericConfigDrive(pubKey, vmUuid, sr)
-                        if err != nil {
-                                return err
-                        }
+		if d.CoreosConfigDrive {
+			err := d.createCoreOSConfigDrive(pubKey, vmUuid, srUuid)
+			if err != nil {
+				return err
+			}
+		} else {
+			log.Infof("Creating Config Drive...")
+			isoVdiUuid, err := d.createGenericConfigDrive(pubKey, vmUuid, sr)
+			if err != nil {
+				return err
+			}
 
 			log.Infof("Add ConfigDrive ISO VDI to VM...")
 			diskVdi, err := c.GetVdiByUuid(isoVdiUuid)
@@ -906,7 +906,7 @@ func (d *Driver) importVdi(vdi *xsclient.VDI, filename string, timeout time.Dura
 
 	if resp.StatusCode != 200 {
 		msg, _ := ioutil.ReadAll(resp.Body)
-		err = fmt.Errorf("xenserver reply %s: %v", resp.Status, string(msg))
+		err = fmt.Errorf("xcp reply %s: %v", resp.Status, string(msg))
 		log.Errorf("Unable to upload VDI: %v", err)
 		return err
 	}
@@ -999,13 +999,13 @@ ssh_authorized_keys:
 	if err != nil {
 		log.Errorf("Could not retrieve hosts in the pool: %s", err)
 		return err
-        }
-        ahost := hosts[0]
-        args := make(map[string]string)
-        args["vmuuid"] = vmuuid
-        args["sruuid"] = sruuid
-        args["configuration"] = userdatatext
-        ahost.CallPlugin("xscontainer","create_config_drive",args)
+	}
+	ahost := hosts[0]
+	args := make(map[string]string)
+	args["vmuuid"] = vmuuid
+	args["sruuid"] = sruuid
+	args["configuration"] = userdatatext
+	ahost.CallPlugin("xscontainer", "create_config_drive", args)
 
 	return nil
 }
@@ -1015,20 +1015,20 @@ func (d *Driver) createGenericConfigDrive(pubKey []byte, vmUuid string, sr *xscl
 ssh_authorized_keys:
   - ` + string(pubKey)
 
-        metadatatext := `{ "uuid": "` + vmUuid + `"}`
+	metadatatext := `{ "uuid": "` + vmUuid + `"}`
 
-        tempDir := d.ResolveStorePath("configdrive")
+	tempDir := d.ResolveStorePath("configdrive")
 
-        //Create the folder structure inside the temp folder
-        path := filepath.Join(tempDir, "openstack", "latest")
-        os.MkdirAll(path, os.ModePerm)
-        f, err := os.OpenFile(filepath.Join(path, "user_data"), os.O_WRONLY|os.O_CREATE, 0666)
-        if err != nil {
+	//Create the folder structure inside the temp folder
+	path := filepath.Join(tempDir, "openstack", "latest")
+	os.MkdirAll(path, os.ModePerm)
+	f, err := os.OpenFile(filepath.Join(path, "user_data"), os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
 		log.Errorf("Unable to open user_data config drive file '%s': %v", path, err)
 		return "", err
 	}
-        io.WriteString(f, userdatatext)
-        f.Close()
+	io.WriteString(f, userdatatext)
+	f.Close()
 
 	fmetadata, err := os.OpenFile(filepath.Join(path, "meta_data.json"), os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {

@@ -1,4 +1,5 @@
-package xenserver
+//This file was modified from the original work, https://github.com/xenserver/docker-machine-driver-xenserver
+package xcp
 
 import (
 	"crypto/tls"

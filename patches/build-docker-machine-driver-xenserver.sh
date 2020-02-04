@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export GITHUB_USER=${GITHUB_USER:-xenserver}
-export GITHUB_REPO=${GITHUB_REPO:-docker-machine-driver-xenserver}
+export GITHUB_USER=${GITHUB_USER:-xcp}
+export GITHUB_REPO=${GITHUB_REPO:-docker-machine-driver-xcp}
 export GITHUB_COMMIT_ID=${TRAVIS_COMMIT:-${COMMIT_ID:-master}}
 export WORKING_DIR=/tmp/tmp.$(date "+%Y%m%d%H%M%S").${RANDOM:-$$}.${GITHUB_REPO}
 export GOROOT_BOOTSTRAP=${WORKING_DIR}/go1.6
@@ -43,8 +43,8 @@ function release_repo() {
 	pushd ${WORKING_DIR}
 
 	if [ -d "${WORKSPACE}" ]; then
-		local FILENAME=docker-machine-driver-xenserver_$(go env GOOS)-$(go env GOARCH)
-		cp -rf $GOPATH/bin/docker-machine-driver-xenserver ${WORKSPACE}/${FILENAME}
+		local FILENAME=docker-machine-driver-xcp_$(go env GOOS)-$(go env GOARCH)
+		cp -rf $GOPATH/bin/docker-machine-driver-xcp ${WORKSPACE}/${FILENAME}
 	fi
 
 	popd
