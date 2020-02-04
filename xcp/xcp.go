@@ -1039,7 +1039,7 @@ ssh_authorized_keys:
 	fmetadata.Close()
 
 	configIsoFilename := d.ResolveStorePath("configdrive.iso")
-	cmd := exec.Command("/usr/bin/mkisofs", "-R", "-V", "config-2", "-o", configIsoFilename, tempDir)
+	cmd := exec.Command("mkisofs", "-R", "-V", "config-2", "-o", configIsoFilename, tempDir)
 	err = cmd.Run()
 	if err != nil {
 		log.Errorf("Unable to create ConfigDrive ISO '%s': %v", configIsoFilename, err)
