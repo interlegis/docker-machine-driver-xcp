@@ -14,6 +14,19 @@ The installation steps are:
 4. Extract the archive
 5. Move the driver binary to your PATH, so it can be found by docker-machine.
 
+# Requirements
+
+To use a generic configdrive, mkisofs is required to create the ISO drive. To install it:
+
+MacOS:
+```
+brew install cdrtools
+```
+
+Linux (Ubuntu):
+```
+apt-get install genisoimage
+```
 
 # Installation from source
 Following the installation of Golang and Docker Machine, you can install the
