@@ -13,10 +13,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
+	"path"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/log"
@@ -27,6 +26,11 @@ import (
 	"github.com/nilshell/xmlrpc"
 	xsclient "github.com/xenserver/go-xenserver-client"
 	"golang.org/x/net/context"
+
+        diskfs "github.com/diskfs/go-diskfs"
+        "github.com/diskfs/go-diskfs/disk"
+        "github.com/diskfs/go-diskfs/filesystem"
+        "github.com/diskfs/go-diskfs/filesystem/iso9660"
 )
 
 const (
@@ -972,6 +976,7 @@ func pseudoUuid() (string, error) {
 	return uuid, nil
 }
 
+// CoreOS only Config Drive 
 func (d *Driver) createCoreOSConfigDrive(pubKey []byte, vmuuid string, sruuid string) error {
 	userdatatext := `#cloud-config
 hostname: %XSVMNAMETOHOSTNAME%
@@ -1010,6 +1015,7 @@ ssh_authorized_keys:
 	return nil
 }
 
+// Generic Config Drive for cloud-init enabled OS templates
 func (d *Driver) createGenericConfigDrive(pubKey []byte, vmUuid string, sr *xsclient.SR) (string, error) {
 	userdatatext := `#cloud-config
 ssh_authorized_keys:
@@ -1017,41 +1023,68 @@ ssh_authorized_keys:
 
 	metadatatext := `{ "uuid": "` + vmUuid + `"}`
 
-	tempDir := d.ResolveStorePath("configdrive")
+        //create ISO file
+        var diskSize int64
+        diskSize = 10 * 1024 * 1024 // 10 MB
+        var configIsoFilename = d.ResolveStorePath("configdrive.iso")
+        cdDisk, err := diskfs.Create(configIsoFilename, diskSize, diskfs.Raw)
+        if err != nil {
+                log.Errorf("Unable to create configdrive.iso: %v", err)
+        }
 
-	//Create the folder structure inside the temp folder
-	path := filepath.Join(tempDir, "openstack", "latest")
-	os.MkdirAll(path, os.ModePerm)
-	f, err := os.OpenFile(filepath.Join(path, "user_data"), os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		log.Errorf("Unable to open user_data config drive file '%s': %v", path, err)
-		return "", err
-	}
-	io.WriteString(f, userdatatext)
-	f.Close()
+        // the following line is required for an ISO, which may have logical block sizes
+        // only of 2048, 4096, 8192
+        cdDisk.LogicalBlocksize = 2048
+        fspec := disk.FilesystemSpec{Partition: 0, FSType: filesystem.TypeISO9660, VolumeLabel: "config-2"}
+        cdFS, err := cdDisk.CreateFilesystem(fspec)
+        if err != nil {
+                log.Errorf("Unable to create ConfigDrive filesystem: %v", err)
+        }
 
-	fmetadata, err := os.OpenFile(filepath.Join(path, "meta_data.json"), os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		log.Errorf("Unable to open meta_data.json config drive file '%s': %v", path, err)
-		return "", err
-	}
-	io.WriteString(fmetadata, metadatatext)
-	fmetadata.Close()
+        cloudInitPrefix := path.Join("/", "openstack", "latest")
 
-	configIsoFilename := d.ResolveStorePath("configdrive.iso")
-	cmd := exec.Command("mkisofs", "-R", "-V", "config-2", "-o", configIsoFilename, tempDir)
-	err = cmd.Run()
+	// place down cloud-init info
+	err = cdFS.Mkdir(cloudInitPrefix)
 	if err != nil {
-		log.Errorf("Unable to create ConfigDrive ISO '%s': %v", configIsoFilename, err)
-		return "", err
+		log.Errorf("Error creating cloud init directory structure: %v", err)
 	}
-	configIsoFileInfo, err := os.Stat(configIsoFilename)
+
+	metadataPath := path.Join(cloudInitPrefix, "meta_data.json")
+	log.Infof("Opening %s", metadataPath)
+	metadataFile, err := cdFS.OpenFile(metadataPath, os.O_CREATE|os.O_RDWR)
 	if err != nil {
-		return "", err
+		log.Errorf("Error opening meta data: %v", err)
 	}
+
+	log.Infof("Writing metadata contents")
+	_, err = metadataFile.Write([]byte(metadatatext))
+	if err != nil {
+		log.Errorf("Error writting meta data: %v", err)
+	}
+
+        userdataPath := path.Join(cloudInitPrefix, "user_data")
+	log.Infof("Opening %s", userdataPath)
+	userdataFile, err := cdFS.OpenFile(userdataPath, os.O_CREATE|os.O_RDWR)
+	if err != nil {
+		log.Errorf("Error opening user data: %v", err)
+	}
+	_, err = userdataFile.Write([]byte(userdatatext))
+	if err != nil {
+		log.Errorf("Error writting user data: %v", err)
+	}
+
+	//finalize ISO
+        iso, ok := cdFS.(*iso9660.FileSystem)
+        if !ok {
+		log.Errorf("not an iso9660 filesystem")
+        }
+        err = iso.Finalize(iso9660.FinalizeOptions{})
+        if err != nil {
+                log.Errorf("Error finalizing configdrive.iso: %v", err)
+        }
 
 	// Create the VDI
-	isoVdi, err := sr.CreateVdi(configIsoFilename, configIsoFileInfo.Size())
+	isoVdi, err := sr.CreateVdi(configIsoFilename, diskSize)
 	if err != nil {
 		log.Errorf("Unable to create ConfigDrive ISO VDI '%s': %v", configIsoFilename, err)
 		return "", err
